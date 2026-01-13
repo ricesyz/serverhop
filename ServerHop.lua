@@ -245,9 +245,27 @@ while fixedTimerActive do
 			fixedTimeRemaining = 90
 			timerLabel.Text = "Ready"
 		else
-			-- Server hop failed, retry in 10 seconds
-			fixedTimeRemaining = 10
-			timerLabel.Text = "Ready"
+			-- Server hop failed, retry for 10 seconds
+			local retryEndTime = tick() + 10
+			local retrying = true
+			
+			while retrying and (tick() < retryEndTime) do
+				local secondsLeft = math.ceil(retryEndTime - tick())
+				timerLabel.Text = "Retrying: " .. secondsLeft .. "s"
+				
+				hopActive = true
+				local retrySuccess = hopServer()
+				hopActive = false
+				
+				if retrySuccess then
+					fixedTimeRemaining = 90
+					timerLabel.Text = "Ready"
+					retrying = false
+					break
+				end
+				
+				wait(1)
+			end
 		end
 		wait(2)
 	end
