@@ -183,7 +183,7 @@ local function hopServer()
 	timerLabel.Text = "Finding server..."
 	
 	local attempts = 0
-	local max_attempts = 3
+	local max_attempts = 15
 	
 	while attempts < max_attempts do
 		local hop_success = pcall(function()
