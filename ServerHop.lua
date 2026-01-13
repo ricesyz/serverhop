@@ -3,6 +3,8 @@ local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
+-- Load via: load(game:HttpGet("https://raw.githubusercontent.com/ricesyz/serverhop/refs/heads/main/ServerHop.lua"))()
+
 -- Ensure this runs only on the client (LocalScript)
 if not game:GetService("RunService"):IsClient() then
 	error("This script must be a LocalScript running on the client!")
