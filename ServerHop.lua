@@ -27,6 +27,10 @@ end
 local hopActive = false
 local timeRemaining = 10
 
+-- Fixed timer (1:30 minutes)
+local fixedTimerActive = true
+local fixedTimeRemaining = 90
+
 -- Create GUI
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -240,3 +244,25 @@ stopButton.MouseButton1Click:Connect(function()
 	wait(1)
 	timerLabel.Text = "Ready"
 end)
+
+-- Fixed Timer Loop (1:30 minutes, starts immediately)
+while fixedTimerActive do
+	if fixedTimeRemaining > 0 then
+		local minutes = math.floor(fixedTimeRemaining / 60)
+		local seconds = fixedTimeRemaining % 60
+		
+		if not hopActive then
+			timerLabel.Text = string.format("Timer: %d:%02d", minutes, seconds)
+		end
+		
+		fixedTimeRemaining = fixedTimeRemaining - 1
+		wait(1)
+	else
+		-- Timer finished
+		fixedTimeRemaining = 90
+		if not hopActive then
+			timerLabel.Text = "Time's up!"
+		end
+		wait(2)
+	end
+end
