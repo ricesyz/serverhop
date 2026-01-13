@@ -3,56 +3,29 @@ local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
--- Load via: load(game:HttpGet("https://raw.githubusercontent.com/ricesyz/serverhop/refs/heads/main/ServerHop.lua"))()
+-- Load via: loadstring(game:HttpGet("https://raw.githubusercontent.com/ricesyz/serverhop/refs/heads/main/ServerHop.lua"))()
 
 -- Ensure this runs only on the client (LocalScript)
 if not game:GetService("RunService"):IsClient() then
 	error("This script must be a LocalScript running on the client!")
 end
 
-local GAME_ID = 7449423635 -- Blox Fruits main game ID
-local API_URL = "https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/Public?sortOrder=Desc&limit=100"
+local GAME_ID = game.PlaceId
+local AllIDs = {}
+local foundAnything = ""
+local actualHour = os.date("!*t").hour
+
+-- Load previous server IDs
+local File = pcall(function()
+	AllIDs = game:GetService('HttpService'):JSONDecode(readfile("NotSameServers.json"))
+end)
+if not File then
+	table.insert(AllIDs, actualHour)
+	writefile("NotSameServers.json", game:GetService('HttpService'):JSONEncode(AllIDs))
+end
+
 local hopActive = false
 local timeRemaining = 10
-
--- Validate that this script is only running in Blox Fruits
-if game.PlaceId ~= GAME_ID then
-	error("This server hopper is exclusive to Blox Fruits (Game ID: " .. GAME_ID .. "). Current game ID: " .. game.PlaceId)
-end
-
-local function getServers()
-	local url = "https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/Public?sortOrder=Desc&limit=100"
-	
-	local success, result = pcall(function()
-		local response = game:HttpGet(url, true)
-		return response
-	end)
-	
-	if not success then
-		warn("HttpGet failed: " .. tostring(result))
-		-- Try alternative method
-		return getServersAlternative()
-	end
-	
-	local success2, decoded = pcall(function()
-		return game:GetService("HttpService"):JSONDecode(result)
-	end)
-	
-	if not success2 then
-		warn("JSON decode failed")
-		return {}
-	end
-	
-	return decoded.data or {}
-end
-
-local function getServersAlternative()
-	-- Fallback: just teleport to random job ID
-	warn("Using alternative hopping method")
-	return {
-		{id = "00000000-0000-0000-0000-000000000001", playing = 1, maxPlayers = 10}
-	}
-end
 
 -- Create GUI
 local player = Players.LocalPlayer
@@ -122,17 +95,64 @@ stopButton.Visible = false
 stopButton.Parent = mainFrame
 
 -- Server hopping function (defined after GUI creation so timerLabel exists)
+local function TPReturner()
+	local Site
+	if foundAnything == "" then
+		Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. GAME_ID .. '/servers/Public?sortOrder=Asc&limit=100'))
+	else
+		Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. GAME_ID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
+	end
+	local ID = ""
+	if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
+		foundAnything = Site.nextPageCursor
+	end
+	local num = 0
+	for i,v in pairs(Site.data) do
+		local Possible = true
+		ID = tostring(v.id)
+		if tonumber(v.maxPlayers) > tonumber(v.playing) then
+			for _,Existing in pairs(AllIDs) do
+				if num ~= 0 then
+					if ID == tostring(Existing) then
+						Possible = false
+					end
+				else
+					if tonumber(actualHour) ~= tonumber(Existing) then
+						local delFile = pcall(function()
+							delfile("NotSameServers.json")
+							AllIDs = {}
+							table.insert(AllIDs, actualHour)
+						end)
+					end
+				end
+				num = num + 1
+			end
+			if Possible == true then
+				table.insert(AllIDs, ID)
+				wait()
+				pcall(function()
+					writefile("NotSameServers.json", game:GetService('HttpService'):JSONEncode(AllIDs))
+					wait()
+					timerLabel.Text = "Hopping..."
+					game:GetService("TeleportService"):TeleportToPlaceInstance(GAME_ID, ID, game.Players.LocalPlayer)
+				end)
+				wait(4)
+				return true
+			end
+		end
+	end
+	return false
+end
+
 local function hopServer()
 	print("Attempting to server hop...")
-	
-	-- Generate random JobID - sometimes this works without API
-	local jobId = game:GetService("HttpService"):GenerateGUID(false)
-	
-	print("Generated JobID: " .. jobId)
 	timerLabel.Text = "Hopping..."
 	
 	local success = pcall(function()
-		TeleportService:TeleportToPlaceInstance(GAME_ID, jobId, Players.LocalPlayer)
+		TPReturner()
+		if foundAnything ~= "" then
+			TPReturner()
+		end
 	end)
 	
 	if not success then
