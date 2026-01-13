@@ -222,7 +222,7 @@ stopButton.MouseButton1Click:Connect(function()
 	timerLabel.Text = "Ready"
 end)
 
--- Fixed Timer Loop (30 seconds, starts immediately)
+-- Fixed Timer Loop (30 seconds initially, 10 seconds on retry)
 while fixedTimerActive do
 	if fixedTimeRemaining > 0 then
 		local minutes = math.floor(fixedTimeRemaining / 60)
@@ -235,9 +235,21 @@ while fixedTimerActive do
 		fixedTimeRemaining = fixedTimeRemaining - 1
 		wait(1)
 	else
-		-- Timer finished - simulate clicking the start button
-		startButton.MouseButton1Click:Fire()
-		fixedTimeRemaining = 30
-		wait(30)
+		-- Timer finished - attempt server hop
+		hopActive = true
+		local hopSuccess = hopServer()
+		hopActive = false
+		
+		if hopSuccess then
+			-- Server hop successful, reset to 30 seconds
+			fixedTimeRemaining = 30
+			timerLabel.Text = "Ready"
+		else
+			-- Server hop failed, retry with 10 seconds
+			fixedTimeRemaining = 10
+			timerLabel.Text = "Ready"
+		end
+		
+		wait(1)
 	end
 end
