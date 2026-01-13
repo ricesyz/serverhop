@@ -3,13 +3,18 @@ local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
-local GAME_ID = 994732206 -- Blox Fruits main game ID
-local API_URL = "https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/0?sortOrder=Desc&limit=100"
+local GAME_ID = 7449423635 -- Blox Fruits main game ID
+local API_URL = "https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/Public?sortOrder=Desc&limit=100"
 local hopActive = false
 local timeRemaining = 10
 
+-- Validate that this script is only running in Blox Fruits
+if game.PlaceId ~= GAME_ID then
+	error("This server hopper is exclusive to Blox Fruits (Game ID: " .. GAME_ID .. "). Current game ID: " .. game.PlaceId)
+end
+
 local function getServers()
-	local url = "https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/0?sortOrder=Desc&limit=100"
+	local url = "https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/Public?sortOrder=Desc&limit=100"
 	
 	local success, result = pcall(function()
 		local response = game:HttpGet(url, true)
