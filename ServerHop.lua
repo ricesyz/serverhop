@@ -258,11 +258,12 @@ while fixedTimerActive do
 		fixedTimeRemaining = fixedTimeRemaining - 1
 		wait(1)
 	else
-		-- Timer finished
+		-- Timer finished - auto server hop
+		hopActive = true
+		hopServer()
+		hopActive = false
 		fixedTimeRemaining = 90
-		if not hopActive then
-			timerLabel.Text = "Time's up!"
-		end
+		timerLabel.Text = "Ready"
 		wait(2)
 	end
 end
