@@ -101,23 +101,11 @@ stopButton.Parent = mainFrame
 -- Server hopping function (defined after GUI creation so timerLabel exists)
 local function TPReturner()
 	local Site
-	local success = false
 	
-	local function fetchServers()
-		if foundAnything == "" then
-			return game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. GAME_ID .. '/servers/Public?sortOrder=Asc&limit=100'))
-		else
-			return game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. GAME_ID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
-		end
-	end
-	
-	local fetch_success = pcall(function()
-		Site = fetchServers()
-	end)
-	
-	if not fetch_success or not Site or not Site.data then
-		warn("Failed to fetch servers from API")
-		return false
+	if foundAnything == "" then
+		Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. GAME_ID .. '/servers/Public?sortOrder=Asc&limit=100'))
+	else
+		Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. GAME_ID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
 	end
 	
 	if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
@@ -126,10 +114,6 @@ local function TPReturner()
 	
 	local num = 0
 	for i,v in pairs(Site.data) do
-		if not v.id or not v.maxPlayers or not v.playing then
-			continue
-		end
-		
 		local Possible = true
 		local ID = tostring(v.id)
 		
@@ -138,41 +122,30 @@ local function TPReturner()
 				if num ~= 0 then
 					if ID == tostring(Existing) then
 						Possible = false
-						break
 					end
 				else
 					if tonumber(actualHour) ~= tonumber(Existing) then
-						pcall(function()
+						local delFile = pcall(function()
 							delfile("NotSameServers.json")
 							AllIDs = {}
 							table.insert(AllIDs, actualHour)
 						end)
 					end
 				end
+				num = num + 1
 			end
 			
 			if Possible == true then
 				table.insert(AllIDs, ID)
+				wait()
 				pcall(function()
 					writefile("NotSameServers.json", game:GetService('HttpService'):JSONEncode(AllIDs))
-				end)
-				
-				timerLabel.Text = "Hopping to: " .. ID:sub(1, 8) .. "..."
-				wait(0.5)
-				
-				local tp_success = pcall(function()
+					wait()
 					game:GetService("TeleportService"):TeleportToPlaceInstance(GAME_ID, ID, game.Players.LocalPlayer)
 				end)
-				
-				if tp_success then
-					print("Successfully teleported to server: " .. ID)
-					return true
-				else
-					warn("Failed to teleport to server: " .. ID)
-				end
+				return true
 			end
 		end
-		num = num + 1
 	end
 	
 	return false
@@ -184,16 +157,18 @@ local function hopServer()
 	
 	local attempts = 0
 	local max_attempts = 15
+	local hopSuccess = false
 	
 	while attempts < max_attempts do
 		local hop_success = pcall(function()
 			if TPReturner() then
 				print("Server hop initiated successfully")
+				hopSuccess = true
 				return
 			end
 		end)
 		
-		if hop_success then
+		if hopSuccess then
 			break
 		end
 		
@@ -208,6 +183,8 @@ local function hopServer()
 		warn("Failed to find available server after " .. max_attempts .. " attempts")
 		timerLabel.Text = "No servers available"
 	end
+	
+	return hopSuccess
 end
 
 -- Start button clicked
@@ -260,10 +237,18 @@ while fixedTimerActive do
 	else
 		-- Timer finished - auto server hop
 		hopActive = true
-		hopServer()
+		local hopSuccess = hopServer()
 		hopActive = false
-		fixedTimeRemaining = 90
-		timerLabel.Text = "Ready"
+		
+		if hopSuccess then
+			-- Server hop successful, reset to 1:30
+			fixedTimeRemaining = 90
+			timerLabel.Text = "Ready"
+		else
+			-- Server hop failed, retry in 10 seconds
+			fixedTimeRemaining = 10
+			timerLabel.Text = "Ready"
+		end
 		wait(2)
 	end
 end
