@@ -102,10 +102,20 @@ stopButton.Parent = mainFrame
 local function TPReturner()
 	local Site
 	
-	if foundAnything == "" then
-		Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. GAME_ID .. '/servers/Public?sortOrder=Asc&limit=100'))
-	else
-		Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. GAME_ID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
+	local function fetchServers()
+		if foundAnything == "" then
+			return game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. GAME_ID .. '/servers/Public?sortOrder=Asc&limit=100'))
+		else
+			return game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. GAME_ID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
+		end
+	end
+	
+	local fetch_success = pcall(function()
+		Site = fetchServers()
+	end)
+	
+	if not fetch_success or not Site or not Site.data then
+		return false
 	end
 	
 	if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
@@ -114,14 +124,20 @@ local function TPReturner()
 	
 	local num = 0
 	for i,v in pairs(Site.data) do
+		if not v.id or not v.maxPlayers or not v.playing then
+			continue
+		end
+		
 		local Possible = true
 		local ID = tostring(v.id)
 		
+		-- Check if server has space
 		if tonumber(v.maxPlayers) > tonumber(v.playing) then
 			for _,Existing in pairs(AllIDs) do
 				if num ~= 0 then
 					if ID == tostring(Existing) then
 						Possible = false
+						break
 					end
 				else
 					if tonumber(actualHour) ~= tonumber(Existing) then
@@ -132,20 +148,24 @@ local function TPReturner()
 						end)
 					end
 				end
-				num = num + 1
 			end
 			
 			if Possible == true then
 				table.insert(AllIDs, ID)
 				wait()
-				pcall(function()
+				
+				local tp_success = pcall(function()
 					writefile("NotSameServers.json", game:GetService('HttpService'):JSONEncode(AllIDs))
-					wait()
+					wait(0.5)
 					game:GetService("TeleportService"):TeleportToPlaceInstance(GAME_ID, ID, game.Players.LocalPlayer)
 				end)
-				return true
+				
+				if tp_success then
+					return true
+				end
 			end
 		end
+		num = num + 1
 	end
 	
 	return false
@@ -181,7 +201,19 @@ local function hopServer()
 	
 	if attempts >= max_attempts then
 		warn("Failed to find available server after " .. max_attempts .. " attempts")
-		timerLabel.Text = "No servers available"
+		timerLabel.Text = "Rejoin attempt..."
+		
+		-- Attempt to rejoin the current game
+		local rejoin_success = pcall(function()
+			game:GetService("TeleportService"):Teleport(GAME_ID, game.Players.LocalPlayer)
+		end)
+		
+		if rejoin_success then
+			print("Rejoin initiated")
+		else
+			timerLabel.Text = "Rejoin failed"
+			wait(2)
+		end
 	end
 	
 	return hopSuccess
