@@ -42,27 +42,6 @@ local function getServersAlternative()
 	}
 end
 
-local function hopServer()
-	print("Attempting to server hop...")
-	
-	-- Generate random JobID - sometimes this works without API
-	local jobId = game:GetService("HttpService"):GenerateGUID(false)
-	
-	print("Generated JobID: " .. jobId)
-	timerLabel.Text = "Hopping..."
-	
-	local success = pcall(function()
-		TeleportService:TeleportToPlaceInstance(GAME_ID, jobId, Players.LocalPlayer)
-	end)
-	
-	if not success then
-		warn("Teleport failed")
-		timerLabel.Text = "Teleport failed"
-	else
-		print("Teleport initiated")
-	end
-end
-
 -- Create GUI
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -129,6 +108,28 @@ stopButton.Text = "Stop"
 stopButton.BorderSizePixel = 0
 stopButton.Visible = false
 stopButton.Parent = mainFrame
+
+-- Server hopping function (defined after GUI creation so timerLabel exists)
+local function hopServer()
+	print("Attempting to server hop...")
+	
+	-- Generate random JobID - sometimes this works without API
+	local jobId = game:GetService("HttpService"):GenerateGUID(false)
+	
+	print("Generated JobID: " .. jobId)
+	timerLabel.Text = "Hopping..."
+	
+	local success = pcall(function()
+		TeleportService:TeleportToPlaceInstance(GAME_ID, jobId, Players.LocalPlayer)
+	end)
+	
+	if not success then
+		warn("Teleport failed")
+		timerLabel.Text = "Teleport failed"
+	else
+		print("Teleport initiated")
+	end
+end
 
 -- Start button clicked
 startButton.MouseButton1Click:Connect(function()
