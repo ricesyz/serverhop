@@ -122,7 +122,7 @@ local function hopServer()
 	local jobId = game:GetService("HttpService"):GenerateGUID(false)
 	
 	print("Generated JobID: " .. jobId)
-	timerLabel.Text = "Hopping..."
+	mainFrame:FindFirstChild("TimerLabel").Text = "Hopping..."
 	
 	local success = pcall(function()
 		TeleportService:TeleportToPlaceInstance(GAME_ID, jobId, Players.LocalPlayer)
@@ -130,7 +130,7 @@ local function hopServer()
 	
 	if not success then
 		warn("Teleport failed")
-		timerLabel.Text = "Teleport failed"
+		mainFrame:FindFirstChild("TimerLabel").Text = "Teleport failed"
 	else
 		print("Teleport initiated")
 	end
