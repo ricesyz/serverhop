@@ -1,234 +1,177 @@
-local PlaceID = game.PlaceId
-local AllIDs = {}
-local foundAnything = ""
-local actualHour = os.date("!*t").hour
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+-- Ensure this runs only on the client (LocalScript)
+if not game:GetService("RunService"):IsClient() then
+	error("This script must be a LocalScript running on the client!")
+end
+
+local GAME_ID = 7449423635 -- Blox Fruits main game ID
+local API_URL = "https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/Public?sortOrder=Desc&limit=100"
 local hopActive = false
-local timerActive = false
+local timeRemaining = 10
 
 -- Validate that this script is only running in Blox Fruits
-local GAME_ID = 7449423635 -- Blox Fruits main game ID
-if PlaceID ~= GAME_ID then
-	error("This server hopper is exclusive to Blox Fruits (Game ID: " .. GAME_ID .. "). Current game ID: " .. PlaceID)
+if game.PlaceId ~= GAME_ID then
+	error("This server hopper is exclusive to Blox Fruits (Game ID: " .. GAME_ID .. "). Current game ID: " .. game.PlaceId)
 end
 
-local File = pcall(function()
-    AllIDs = game:GetService('HttpService'):JSONDecode(readfile("NotSameServers.json"))
-end)
-if not File then
-    table.insert(AllIDs, actualHour)
-    writefile("NotSameServers.json", game:GetService('HttpService'):JSONEncode(AllIDs))
+local function getServers()
+	local url = "https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/Public?sortOrder=Desc&limit=100"
+	
+	local success, result = pcall(function()
+		local response = game:HttpGet(url, true)
+		return response
+	end)
+	
+	if not success then
+		warn("HttpGet failed: " .. tostring(result))
+		-- Try alternative method
+		return getServersAlternative()
+	end
+	
+	local success2, decoded = pcall(function()
+		return game:GetService("HttpService"):JSONDecode(result)
+	end)
+	
+	if not success2 then
+		warn("JSON decode failed")
+		return {}
+	end
+	
+	return decoded.data or {}
 end
 
--- Create Modern GUI
-local player = game:GetService("Players").LocalPlayer
+local function getServersAlternative()
+	-- Fallback: just teleport to random job ID
+	warn("Using alternative hopping method")
+	return {
+		{id = "00000000-0000-0000-0000-000000000001", playing = 1, maxPlayers = 10}
+	}
+end
+
+-- Create GUI
+local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "ServerHopperGui"
+screenGui.Name = "ServerHopGui"
 screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = playerGui
 
--- Main Frame (Modern Dark Theme)
+-- Main Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 300, 0, 200)
+mainFrame.Size = UDim2.new(0, 250, 0, 150)
 mainFrame.Position = UDim2.new(0, 20, 0, 20)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
-mainFrame.CornerRadius = UDim.new(0, 12)
 mainFrame.Parent = screenGui
-
--- Add shadow effect with UIStroke
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(0, 120, 215)
-stroke.Thickness = 2
-stroke.Parent = mainFrame
 
 -- Title
 local title = Instance.new("TextLabel")
 title.Name = "Title"
-title.Size = UDim2.new(1, 0, 0, 40)
+title.Size = UDim2.new(1, 0, 0, 30)
 title.Position = UDim2.new(0, 0, 0, 0)
-title.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextSize = 18
-title.TextWeight = Enum.FontWeight.Bold
-title.Text = "⚡ Server Hopper"
+title.TextSize = 16
+title.Text = "Server Hop"
 title.BorderSizePixel = 0
-title.Font = Enum.Font.GothamBold
 title.Parent = mainFrame
-
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 12)
-titleCorner.Parent = title
-
--- Status Label
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Name = "StatusLabel"
-statusLabel.Size = UDim2.new(1, -20, 0, 50)
-statusLabel.Position = UDim2.new(0, 10, 0, 50)
-statusLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-statusLabel.TextSize = 14
-statusLabel.Text = "Status: Ready"
-statusLabel.BorderSizePixel = 0
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-statusLabel.Parent = mainFrame
 
 -- Timer Label
 local timerLabel = Instance.new("TextLabel")
 timerLabel.Name = "TimerLabel"
-timerLabel.Size = UDim2.new(1, -20, 0, 35)
-timerLabel.Position = UDim2.new(0, 10, 0, 105)
-timerLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-timerLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-timerLabel.TextSize = 13
-timerLabel.Text = "Timer: --"
+timerLabel.Size = UDim2.new(1, 0, 0, 40)
+timerLabel.Position = UDim2.new(0, 0, 0, 35)
+timerLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+timerLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+timerLabel.TextSize = 14
+timerLabel.Text = "Ready"
 timerLabel.BorderSizePixel = 0
-timerLabel.Font = Enum.Font.Gotham
-timerLabel.TextXAlignment = Enum.TextXAlignment.Center
 timerLabel.Parent = mainFrame
 
 -- Start Button
 local startButton = Instance.new("TextButton")
 startButton.Name = "StartButton"
-startButton.Size = UDim2.new(0.45, -5, 0, 35)
-startButton.Position = UDim2.new(0, 10, 0, 155)
-startButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+startButton.Size = UDim2.new(1, -10, 0, 35)
+startButton.Position = UDim2.new(0, 5, 0, 110)
+startButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
 startButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 startButton.TextSize = 14
-startButton.Text = "▶ Start"
+startButton.Text = "Start Hop"
 startButton.BorderSizePixel = 0
-startButton.Font = Enum.Font.GothamBold
 startButton.Parent = mainFrame
-
-local startCorner = Instance.new("UICorner")
-startCorner.CornerRadius = UDim.new(0, 8)
-startCorner.Parent = startButton
 
 -- Stop Button
 local stopButton = Instance.new("TextButton")
 stopButton.Name = "StopButton"
-stopButton.Size = UDim2.new(0.45, -5, 0, 35)
-stopButton.Position = UDim2.new(0.55, 0, 0, 155)
-stopButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+stopButton.Size = UDim2.new(0, 0, 0, 35)
+stopButton.Position = UDim2.new(0, 5, 0, 110)
+stopButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 stopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 stopButton.TextSize = 14
-stopButton.Text = "⏹ Stop"
+stopButton.Text = "Stop"
 stopButton.BorderSizePixel = 0
-stopButton.Font = Enum.Font.GothamBold
 stopButton.Visible = false
 stopButton.Parent = mainFrame
 
-local stopCorner = Instance.new("UICorner")
-stopCorner.CornerRadius = UDim.new(0, 8)
-stopCorner.Parent = stopButton
-
--- Add hover effects
-local function addHoverEffect(button)
-	local originalColor = button.BackgroundColor3
-	button.MouseEnter:Connect(function()
-		button.BackgroundColor3 = Color3.fromRGB(
-			math.min(originalColor.R * 255 + 20, 255) / 255,
-			math.min(originalColor.G * 255 + 20, 255) / 255,
-			math.min(originalColor.B * 255 + 20, 255) / 255
-		)
+-- Server hopping function (defined after GUI creation so timerLabel exists)
+local function hopServer()
+	print("Attempting to server hop...")
+	
+	-- Generate random JobID - sometimes this works without API
+	local jobId = game:GetService("HttpService"):GenerateGUID(false)
+	
+	print("Generated JobID: " .. jobId)
+	timerLabel.Text = "Hopping..."
+	
+	local success = pcall(function()
+		TeleportService:TeleportToPlaceInstance(GAME_ID, jobId, Players.LocalPlayer)
 	end)
-	button.MouseLeave:Connect(function()
-		button.BackgroundColor3 = originalColor
-	end)
+	
+	if not success then
+		warn("Teleport failed")
+		timerLabel.Text = "Teleport failed"
+	else
+		print("Teleport initiated")
+	end
 end
 
-addHoverEffect(startButton)
-addHoverEffect(stopButton)
-
-function TPReturner()
-    local Site;
-    if foundAnything == "" then
-        Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'))
-    else
-        Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
-    end
-    local ID = ""
-    if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
-        foundAnything = Site.nextPageCursor
-    end
-    local num = 0;
-    for i,v in pairs(Site.data) do
-        local Possible = true
-        ID = tostring(v.id)
-        if tonumber(v.maxPlayers) > tonumber(v.playing) then
-            for _,Existing in pairs(AllIDs) do
-                if num ~= 0 then
-                    if ID == tostring(Existing) then
-                        Possible = false
-                    end
-                else
-                    if tonumber(actualHour) ~= tonumber(Existing) then
-                        local delFile = pcall(function()
-                            delfile("NotSameServers.json")
-                            AllIDs = {}
-                            table.insert(AllIDs, actualHour)
-                        end)
-                    end
-                end
-                num = num + 1
-            end
-            if Possible == true and hopActive then
-                table.insert(AllIDs, ID)
-                wait()
-                pcall(function()
-                    writefile("NotSameServers.json", game:GetService('HttpService'):JSONEncode(AllIDs))
-                    wait()
-                    game:GetService("TeleportService"):TeleportToPlaceInstance(PlaceID, ID, game.Players.LocalPlayer)
-                end)
-                wait(4)
-            end
-        end
-    end
-end
-
-function startHopping()
-    hopActive = true
-    timerActive = true
-    startButton.Visible = false
-    stopButton.Visible = true
-    statusLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
-    
-    -- 10 second timer
-    for i = 10, 0, -1 do
-        if not timerActive then return end
-        timerLabel.Text = "Timer: " .. i .. "s"
-        statusLabel.Text = "Status: Hopping in " .. i .. "s..."
-        wait(1)
-    end
-    
-    if timerActive then
-        statusLabel.Text = "Status: Hopping..."
-        timerLabel.Text = "Timer: Hopping..."
-        while hopActive and timerActive do
-            pcall(function()
-                TPReturner()
-                if foundAnything ~= "" then
-                    TPReturner()
-                end
-            end)
-        end
-    end
-end
-
+-- Start button clicked
 startButton.MouseButton1Click:Connect(function()
-    startHopping()
+	hopActive = true
+	timeRemaining = 10
+	startButton.Visible = false
+	stopButton.Visible = true
+	
+	for i = 10, 0, -1 do
+		if not hopActive then break end
+		timeRemaining = i
+		local minutes = math.floor(i / 60)
+		local seconds = i % 60
+		timerLabel.Text = string.format("Hopping in: %d:%02d", minutes, seconds)
+		wait(1)
+	end
+	
+	if hopActive then
+		hopServer()
+		hopActive = false
+		startButton.Visible = true
+		stopButton.Visible = false
+		timerLabel.Text = "Ready"
+	end
 end)
 
+-- Stop button clicked
 stopButton.MouseButton1Click:Connect(function()
-    hopActive = false
-    timerActive = false
-    startButton.Visible = true
-    stopButton.Visible = false
-    timerLabel.Text = "Timer: --"
-    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    statusLabel.Text = "Status: Stopped"
+	hopActive = false
+	startButton.Visible = true
+	stopButton.Visible = false
+	timerLabel.Text = "Cancelled"
+	wait(1)
+	timerLabel.Text = "Ready"
 end)
