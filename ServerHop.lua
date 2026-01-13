@@ -235,38 +235,8 @@ while fixedTimerActive do
 		fixedTimeRemaining = fixedTimeRemaining - 1
 		wait(1)
 	else
-		-- Timer finished - auto server hop
-		hopActive = true
-		local hopSuccess = hopServer()
-		hopActive = false
-		
-		if hopSuccess then
-			-- Server hop successful, reset to 1:30
-			fixedTimeRemaining = 90
-			timerLabel.Text = "Ready"
-		else
-			-- Server hop failed, retry for 10 seconds
-			local retryEndTime = tick() + 10
-			local retrying = true
-			
-			while retrying and (tick() < retryEndTime) do
-				local secondsLeft = math.ceil(retryEndTime - tick())
-				timerLabel.Text = "Retrying: " .. secondsLeft .. "s"
-				
-				hopActive = true
-				local retrySuccess = hopServer()
-				hopActive = false
-				
-				if retrySuccess then
-					fixedTimeRemaining = 90
-					timerLabel.Text = "Ready"
-					retrying = false
-					break
-				end
-				
-				wait(1)
-			end
-		end
+		-- Timer finished - simulate clicking the start button
+		startButton.MouseButton1Click:Fire()
 		wait(2)
 	end
 end
