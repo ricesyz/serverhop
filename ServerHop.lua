@@ -201,17 +201,35 @@ local function hopServer()
 	
 	if attempts >= max_attempts then
 		warn("Failed to find available server after " .. max_attempts .. " attempts")
-		timerLabel.Text = "Rejoin attempt..."
 		
-		-- Attempt to rejoin the current game
-		local rejoin_success = pcall(function()
-			game:GetService("TeleportService"):Teleport(GAME_ID, game.Players.LocalPlayer)
-		end)
+		-- Attempt to rejoin the current game with retries
+		local rejoin_attempts = 0
+		local max_rejoin_attempts = 5
+		local rejoin_success = false
 		
-		if rejoin_success then
-			print("Rejoin initiated")
-		else
-			timerLabel.Text = "Rejoin failed"
+		while rejoin_attempts < max_rejoin_attempts and not rejoin_success do
+			timerLabel.Text = "Rejoin attempt... (" .. rejoin_attempts + 1 .. "/" .. max_rejoin_attempts .. ")"
+			
+			local rejoin_result = pcall(function()
+				game:GetService("TeleportService"):Teleport(GAME_ID, game.Players.LocalPlayer)
+			end)
+			
+			if rejoin_result then
+				print("Rejoin initiated")
+				rejoin_success = true
+				break
+			else
+				warn("Rejoin failed (Error 772), retrying...")
+				rejoin_attempts = rejoin_attempts + 1
+				if rejoin_attempts < max_rejoin_attempts then
+					timerLabel.Text = "Retrying rejoin... (" .. rejoin_attempts .. "/" .. max_rejoin_attempts .. ")"
+					wait(3)
+				end
+			end
+		end
+		
+		if not rejoin_success then
+			timerLabel.Text = "Rejoin failed - manual intervention needed"
 			wait(2)
 		end
 	end
