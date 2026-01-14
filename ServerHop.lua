@@ -277,9 +277,9 @@ while fixedTimerActive do
 			fixedTimeRemaining = 30
 			timerLabel.Text = "Ready"
 		else
-			-- Server hop failed, retry with 10 seconds
-			fixedTimeRemaining = 10
-			timerLabel.Text = "Ready"
+			-- Server hop failed, click Start Hop button to retry
+			startButton:MouseButton1Click()
+			fixedTimeRemaining = 30
 		end
 		
 		wait(1)
