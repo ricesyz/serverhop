@@ -27,9 +27,9 @@ end
 local hopActive = false
 local timeRemaining = 10
 
--- Fixed timer (30 seconds)
+-- Fixed timer (50 seconds for first attempt)
 local fixedTimerActive = true
-local fixedTimeRemaining = 30
+local fixedTimeRemaining = 50
 
 -- Create GUI
 local player = Players.LocalPlayer
@@ -272,14 +272,17 @@ stopButton.MouseButton1Click:Connect(function()
 	timerLabel.Text = "Ready"
 end)
 
--- Fixed Timer Loop (30 seconds initially, 10 seconds on retry)
+-- Fixed Timer Loop with 3-attempt cycle (50s, 30s, 10s)
+local attemptCount = 0
+local timers = {50, 30, 10} -- Timer durations for each attempt
+
 while fixedTimerActive do
 	if fixedTimeRemaining > 0 then
 		local minutes = math.floor(fixedTimeRemaining / 60)
 		local seconds = fixedTimeRemaining % 60
 		
 		if not hopActive then
-			timerLabel.Text = string.format("Timer: %d:%02d", minutes, seconds)
+			timerLabel.Text = string.format("Attempt %d - Timer: %d:%02d", attemptCount + 1, minutes, seconds)
 		end
 		
 		fixedTimeRemaining = fixedTimeRemaining - 1
@@ -291,13 +294,26 @@ while fixedTimerActive do
 		hopActive = false
 		
 		if hopSuccess then
-			-- Server hop successful, reset to 30 seconds
-			fixedTimeRemaining = 30
+			-- Server hop successful, reset cycle
+			attemptCount = 0
+			fixedTimeRemaining = timers[1]
 			timerLabel.Text = "Ready"
 		else
-			-- Server hop failed, click Start Hop button to retry
-			startButton:MouseButton1Click()
-			fixedTimeRemaining = 30
+			-- Server hop failed, move to next attempt
+			attemptCount = attemptCount + 1
+			
+			if attemptCount < #timers then
+				-- Set timer for next attempt
+				fixedTimeRemaining = timers[attemptCount + 1]
+				timerLabel.Text = "Ready"
+			else
+				-- All 3 attempts failed, reset cycle
+				attemptCount = 0
+				fixedTimeRemaining = timers[1]
+				timerLabel.Text = "Cycle complete - restarting"
+				wait(2)
+				timerLabel.Text = "Ready"
+			end
 		end
 		
 		wait(1)
