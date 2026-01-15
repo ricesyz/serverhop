@@ -430,6 +430,56 @@ end
 -- Start tracker automatically
 task.spawn(beliTracker)
 
+-- Fixed Timer Loop with 3-attempt cycle (50s, 30s, 10s)
+task.spawn(function()
+	local attemptCount = 0
+	local timers = {50, 30, 10} -- Timer durations for each attempt
+
+	while fixedTimerActive do
+		if fixedTimeRemaining > 0 then
+			local minutes = math.floor(fixedTimeRemaining / 60)
+			local seconds = fixedTimeRemaining % 60
+			
+			if not hopActive then
+				timerLabel.Text = string.format("Attempt %d - Timer: %d:%02d", attemptCount + 1, minutes, seconds)
+			end
+			
+			fixedTimeRemaining = fixedTimeRemaining - 1
+			wait(1)
+		else
+			-- Timer finished - attempt server hop
+			hopActive = true
+			local hopSuccess = hopServer()
+			hopActive = false
+			
+			if hopSuccess then
+				-- Server hop successful, reset cycle
+				attemptCount = 0
+				fixedTimeRemaining = timers[1]
+				timerLabel.Text = "Ready"
+			else
+				-- Server hop failed, move to next attempt
+				attemptCount = attemptCount + 1
+				
+				if attemptCount < #timers then
+					-- Set timer for next attempt
+					fixedTimeRemaining = timers[attemptCount + 1]
+					timerLabel.Text = "Ready"
+				else
+					-- All 3 attempts failed, reset cycle
+					attemptCount = 0
+					fixedTimeRemaining = timers[1]
+					timerLabel.Text = "Cycle complete - restarting"
+					wait(2)
+					timerLabel.Text = "Ready"
+				end
+			end
+			
+			wait(1)
+		end
+	end
+end)
+
 -- Start button clicked
 startButton.MouseButton1Click:Connect(function()
 	hopActive = true
@@ -497,51 +547,3 @@ stopTrackerButton.MouseButton1Click:Connect(function()
 	webhookInputLabel.Visible = true
 	trackerStatusLabel.Text = "Status: Idle"
 end)
-
--- Fixed Timer Loop with 3-attempt cycle (50s, 30s, 10s)
-local attemptCount = 0
-local timers = {50, 30, 10} -- Timer durations for each attempt
-
-while fixedTimerActive do
-	if fixedTimeRemaining > 0 then
-		local minutes = math.floor(fixedTimeRemaining / 60)
-		local seconds = fixedTimeRemaining % 60
-		
-		if not hopActive then
-			timerLabel.Text = string.format("Attempt %d - Timer: %d:%02d", attemptCount + 1, minutes, seconds)
-		end
-		
-		fixedTimeRemaining = fixedTimeRemaining - 1
-		wait(1)
-	else
-		-- Timer finished - attempt server hop
-		hopActive = true
-		local hopSuccess = hopServer()
-		hopActive = false
-		
-		if hopSuccess then
-			-- Server hop successful, reset cycle
-			attemptCount = 0
-			fixedTimeRemaining = timers[1]
-			timerLabel.Text = "Ready"
-		else
-			-- Server hop failed, move to next attempt
-			attemptCount = attemptCount + 1
-			
-			if attemptCount < #timers then
-				-- Set timer for next attempt
-				fixedTimeRemaining = timers[attemptCount + 1]
-				timerLabel.Text = "Ready"
-			else
-				-- All 3 attempts failed, reset cycle
-				attemptCount = 0
-				fixedTimeRemaining = timers[1]
-				timerLabel.Text = "Cycle complete - restarting"
-				wait(2)
-				timerLabel.Text = "Ready"
-			end
-		end
-		
-		wait(1)
-	end
-end
