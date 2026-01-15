@@ -3,6 +3,11 @@ local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
+-- Enable HttpService if needed (for Studio execution)
+pcall(function()
+	HttpService:SetHttpEnabled(true)
+end)
+
 -- Load via: loadstring(game:HttpGet("https://raw.githubusercontent.com/ricesyz/serverhop/refs/heads/main/ServerHop.lua"))()
 
 -- Ensure this runs only on the client (LocalScript)
@@ -429,25 +434,39 @@ local function sendWebhook(message)
 	
 	print("Attempting to send webhook to: " .. webhookUrl:sub(1, 50) .. "...")
 	
-	local payload = {
-		content = message,
-		username = "Beli Tracker"
-	}
+	-- Try multiple methods to send the webhook
+	local sent = false
 	
-	local jsonPayload = HttpService:JSONEncode(payload)
-	
-	local success, response = pcall(function()
-		HttpService:PostAsync(webhookUrl, jsonPayload, Enum.HttpContentType.ApplicationJson)
-		return true
+	-- Method 1: Standard JSON PostAsync
+	local success1, response1 = pcall(function()
+		local payload = {
+			content = message,
+			username = "Beli Tracker"
+		}
+		return HttpService:PostAsync(webhookUrl, HttpService:JSONEncode(payload), Enum.HttpContentType.ApplicationJson)
 	end)
 	
-	if success and response == true then
-		print("Webhook sent successfully!")
-		return true
+	if success1 and response1 then
+		print("Webhook sent successfully via JSON!")
+		sent = true
 	else
-		print("Webhook error: " .. tostring(response))
-		return false
+		print("JSON method failed: " .. tostring(response1))
+		
+		-- Method 2: Try with form data instead
+		local success2, response2 = pcall(function()
+			local payload = "content=" .. HttpService:UrlEncode(message) .. "&username=Beli%20Tracker"
+			return HttpService:PostAsync(webhookUrl, payload, Enum.HttpContentType.ApplicationUrlEncoded)
+		end)
+		
+		if success2 and response2 then
+			print("Webhook sent successfully via form data!")
+			sent = true
+		else
+			print("Form data method failed: " .. tostring(response2))
+		end
 	end
+	
+	return sent
 end
 
 local function beliTracker()
