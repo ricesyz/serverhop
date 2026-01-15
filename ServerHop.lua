@@ -348,11 +348,12 @@ local function getBeliFromGui()
 	for _, child in pairs(playerGui:GetDescendants()) do
 		if child:IsA("TextLabel") then
 			local text = child.Text
-			-- Look for money format like "$42,834,273"
-			if text:match("^%$[%d,]+$") then
-				local number = text:gsub("$", ""):gsub(",", "")
+			-- Look for money format like "$42,834,273" or "$ 42,834,273" or just numbers with commas
+			local number = text:match("%$%s*([%d,]+)")
+			if number then
+				number = number:gsub(",", "")
 				local beli = tonumber(number)
-				if beli and beli > 0 then
+				if beli and beli > 100000 then  -- Only accept if it's a reasonable beli amount
 					return beli
 				end
 			end
