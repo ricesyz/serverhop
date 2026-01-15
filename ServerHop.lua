@@ -344,33 +344,17 @@ local function getBeliFromGui()
 	-- Try to find Beli in PlayerGui
 	local playerGui = player:WaitForChild("PlayerGui")
 	
-	-- Try common Blox Fruits GUI paths
-	local beliLabel = playerGui:FindFirstChild("Main")
-	if beliLabel then
-		beliLabel = beliLabel:FindFirstChild("Menu")
-	end
-	
-	if beliLabel then
-		-- Look for the money/beli label in the Menu
-		for _, child in pairs(beliLabel:GetDescendants()) do
-			if child:IsA("TextLabel") then
-				local text = child.Text
-				-- Look for money format like "$42,834,273"
-				if text:match("^%$[%d,]+$") then
-					local number = text:gsub("$", ""):gsub(",", "")
-					return tonumber(number) or 0
-				end
-			end
-		end
-	end
-	
-	-- Fallback: search everywhere for $ format
+	-- Search all descendants for the money label
 	for _, child in pairs(playerGui:GetDescendants()) do
 		if child:IsA("TextLabel") then
 			local text = child.Text
+			-- Look for money format like "$42,834,273"
 			if text:match("^%$[%d,]+$") then
 				local number = text:gsub("$", ""):gsub(",", "")
-				return tonumber(number) or 0
+				local beli = tonumber(number)
+				if beli and beli > 0 then
+					return beli
+				end
 			end
 		end
 	end
@@ -398,9 +382,16 @@ local function sendWebhook(message)
 end
 
 local function beliTracker()
+	wait(1) -- Give GUI time to load
 	local currentBeli = getBeliFromGui()
-	lastBeliMilestone = math.floor(currentBeli / 500000)
 	
+	if currentBeli == 0 then
+		trackerStatusLabel.Text = "Status: Waiting for beli..."
+		wait(3)
+		currentBeli = getBeliFromGui()
+	end
+	
+	lastBeliMilestone = math.floor(currentBeli / 500000)
 	trackerStatusLabel.Text = "Status: Tracking (" .. string.format("%,.0f", currentBeli) .. ")"
 	
 	while beliTrackerActive do
@@ -409,9 +400,11 @@ local function beliTracker()
 		currentBeli = getBeliFromGui()
 		local currentMilestone = math.floor(currentBeli / 500000)
 		
-		trackerStatusLabel.Text = "Status: Tracking (" .. string.format("%,.0f", currentBeli) .. ")"
+		if currentBeli > 0 then
+			trackerStatusLabel.Text = "Status: Tracking (" .. string.format("%,.0f", currentBeli) .. ")"
+		end
 		
-		-- Check if we've hit a new 1M milestone
+		-- Check if we've hit a new 500k milestone
 		if currentMilestone > lastBeliMilestone then
 			local newMilestones = currentMilestone - lastBeliMilestone
 			local webhookMessage = "🍖 **Beli Milestone Reached!** 🍖\n" ..
@@ -419,8 +412,12 @@ local function beliTracker()
 				"Milestones: **+" .. newMilestones .. " (500k)**"
 			
 			webhookUrl = webhookInput.Text
-			if sendWebhook(webhookMessage) then
-				print("Webhook sent for " .. newMilestones .. "M milestone")
+			if webhookUrl ~= "" and not webhookUrl:find("YOUR_ID") then
+				if sendWebhook(webhookMessage) then
+					print("Webhook sent for " .. newMilestones .. "M milestone")
+				end
+			else
+				print("Webhook not configured - skipping send")
 			end
 			
 			lastBeliMilestone = currentMilestone
