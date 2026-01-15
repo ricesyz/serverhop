@@ -423,21 +423,28 @@ end
 
 local function sendWebhook(message)
 	if webhookUrl == "" or webhookUrl:find("YOUR_ID") then
-		warn("Webhook URL not set properly")
+		print("Webhook URL not set or invalid")
 		return false
 	end
 	
+	print("Attempting to send webhook to: " .. webhookUrl:sub(1, 50) .. "...")
+	
 	local payload = {
 		content = message,
-		username = "Beli Tracker",
-		avatar_url = "https://cdn.discordapp.com/emojis/1234567890.png"
+		username = "Beli Tracker"
 	}
 	
-	local success = pcall(function()
-		HttpService:PostAsync(webhookUrl, HttpService:JSONEncode(payload), Enum.HttpContentType.ApplicationJson)
+	local success, response = pcall(function()
+		return HttpService:PostAsync(webhookUrl, HttpService:JSONEncode(payload), Enum.HttpContentType.ApplicationJson)
 	end)
 	
-	return success
+	if success then
+		print("Webhook sent successfully!")
+		return true
+	else
+		print("Webhook failed: " .. tostring(response))
+		return false
+	end
 end
 
 local function beliTracker()
@@ -467,16 +474,15 @@ local function beliTracker()
 		-- Send webhook every 10 seconds OR if reached 50k earned
 		if trackingTimer <= 0 or totalEarned >= 50000 then
 			if totalEarned > 0 then
-				local webhookMessage = "💰 **Earnings Report!** 💰\n" ..
-					"Total Earned: **$" .. tostring(totalEarned) .. "**"
+				local webhookMessage = "💰 **Earnings Report!** 💰\nTotal Earned: **$" .. tostring(totalEarned) .. "**"
 				
 				webhookUrl = webhookInput.Text
-				if webhookUrl ~= "" and not webhookUrl:find("YOUR_ID") then
-					if sendWebhook(webhookMessage) then
-						print("Webhook sent - Earned: $" .. tostring(totalEarned))
-					end
+				print("Webhook URL from input: " .. webhookUrl)
+				
+				if sendWebhook(webhookMessage) then
+					print("Webhook sent - Earned: $" .. tostring(totalEarned))
 				else
-					print("Webhook not configured - skipping send")
+					print("Failed to send webhook")
 				end
 			end
 			
