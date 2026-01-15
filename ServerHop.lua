@@ -277,6 +277,8 @@ local beliTrackerActive = true
 local totalEarned = 0
 local webhookUrl = ""
 local trackingTimer = 0
+local lastKnownBeli = 0
+local earnedSinceLast = 0
 
 -- Expand main frame to accommodate beli tracker
 mainFrame.Size = UDim2.new(0, 250, 0, 230)
@@ -340,6 +342,36 @@ trackerStatusLabel.Text = "Status: Tracking..."
 trackerStatusLabel.BorderSizePixel = 0
 trackerStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 trackerStatusLabel.Parent = mainFrame
+
+local function getBeliFromGui()
+	-- Try to find total Beli in PlayerGui (the persistent money display)
+	local playerGui = player:WaitForChild("PlayerGui")
+	
+	-- Search for the money label that shows your total beli
+	for _, child in pairs(playerGui:GetDescendants()) do
+		if child and child:IsA("TextLabel") then
+			local success, text = pcall(function() return child.Text end)
+			if not success or not text then continue end
+			
+			-- Remove HTML/font tags to get clean text
+			local cleanText = text:gsub("<[^>]+>", "")
+			
+			-- Look for just "$XXXX" format (the total beli display)
+			-- This pattern matches a $ followed by numbers with optional commas
+			local number = cleanText:match("^%$%s*([%d,]+)$")
+			
+			if number then
+				number = number:gsub(",", "")
+				local beli = tonumber(number)
+				if beli and beli > 100000 then  -- Only accept reasonable amounts
+					return beli
+				end
+			end
+		end
+	end
+	
+	return 0
+end
 
 local function getEarnedFromGui()
 	-- Try to find Earned money in PlayerGui
@@ -410,31 +442,34 @@ end
 
 local function beliTracker()
 	wait(1) -- Give GUI time to load
-	local lastEarned = 0
+	lastKnownBeli = getBeliFromGui()
 	totalEarned = 0
 	trackingTimer = 10
 	
-	trackerStatusLabel.Text = "Status: Tracking (Earned: $0)"
+	trackerStatusLabel.Text = "Status: Tracking (Total: $0)"
 	
 	while beliTrackerActive do
 		wait(1)
 		trackingTimer = trackingTimer - 1
 		
-		local currentEarned = getEarnedFromGui()
+		local currentBeli = getBeliFromGui()
 		
-		-- Add new earnings to total
-		if currentEarned > lastEarned then
-			totalEarned = totalEarned + (currentEarned - lastEarned)
-			lastEarned = currentEarned
+		-- Calculate earnings (difference from last check)
+		if currentBeli > lastKnownBeli then
+			earnedSinceLast = currentBeli - lastKnownBeli
+			totalEarned = totalEarned + earnedSinceLast
+			print("Earned: $" .. earnedSinceLast .. " | Total this cycle: $" .. totalEarned)
+			lastKnownBeli = currentBeli
 		end
 		
-		trackerStatusLabel.Text = "Status: Tracking (Earned: $" .. tostring(totalEarned) .. ")"
+		trackerStatusLabel.Text = "Status: Tracking (Total: $" .. tostring(totalEarned) .. ")"
 		
-		-- Send webhook every 10 seconds
-		if trackingTimer <= 0 then
+		-- Send webhook every 10 seconds OR if reached 50k earned
+		if trackingTimer <= 0 or totalEarned >= 50000 then
 			if totalEarned > 0 then
 				local webhookMessage = "💰 **Earnings Report!** 💰\n" ..
-				"Total Earned: **$" .. tostring(totalEarned) .. "**"
+					"Total Earned: **$" .. tostring(totalEarned) .. "**"
+				
 				webhookUrl = webhookInput.Text
 				if webhookUrl ~= "" and not webhookUrl:find("YOUR_ID") then
 					if sendWebhook(webhookMessage) then
@@ -448,7 +483,6 @@ local function beliTracker()
 			-- Reset for next cycle
 			totalEarned = 0
 			trackingTimer = 10
-			lastEarned = currentEarned
 		end
 	end
 	
