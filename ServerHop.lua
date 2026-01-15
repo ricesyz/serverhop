@@ -426,47 +426,24 @@ local function getEarnedFromGui()
 	return 0
 end
 
-local function sendWebhook(message)
-	if webhookUrl == "" or webhookUrl:find("YOUR_ID") then
-		print("Webhook URL not set or invalid")
-		return false
-	end
-	
-	print("Attempting to send webhook to: " .. webhookUrl:sub(1, 50) .. "...")
-	
-	-- Try multiple methods to send the webhook
-	local sent = false
-	
-	-- Method 1: Standard JSON PostAsync
-	local success1, response1 = pcall(function()
-		local payload = {
-			content = message,
-			username = "Beli Tracker"
-		}
-		return HttpService:PostAsync(webhookUrl, HttpService:JSONEncode(payload), Enum.HttpContentType.ApplicationJson)
-	end)
-	
-	if success1 and response1 then
-		print("Webhook sent successfully via JSON!")
-		sent = true
-	else
-		print("JSON method failed: " .. tostring(response1))
+local function logEarningsToFile(message)
+	-- Save earnings to local file since Blox Fruits blocks webhooks
+	local success = pcall(function()
+		local filename = "BeliTrackerLog.txt"
+		local timestamp = os.date("%Y-%m-%d %H:%M:%S")
+		local logEntry = "[" .. timestamp .. "] " .. message .. "\n"
 		
-		-- Method 2: Try with form data instead
-		local success2, response2 = pcall(function()
-			local payload = "content=" .. HttpService:UrlEncode(message) .. "&username=Beli%20Tracker"
-			return HttpService:PostAsync(webhookUrl, payload, Enum.HttpContentType.ApplicationUrlEncoded)
+		-- Try to append to existing file
+		local existing = ""
+		local readSuccess = pcall(function()
+			existing = readfile(filename)
 		end)
 		
-		if success2 and response2 then
-			print("Webhook sent successfully via form data!")
-			sent = true
-		else
-			print("Form data method failed: " .. tostring(response2))
-		end
-	end
+		writefile(filename, existing .. logEntry)
+		print("Earnings logged to BeliTrackerLog.txt")
+	end)
 	
-	return sent
+	return success
 end
 
 local function beliTracker()
@@ -493,19 +470,14 @@ local function beliTracker()
 		
 		trackerStatusLabel.Text = "Status: Tracking (Total: $" .. tostring(totalEarned) .. ")"
 		
-		-- Send webhook every 10 seconds OR if reached 50k earned
+		-- Send log entry every 10 seconds OR if reached 50k earned
 		if trackingTimer <= 0 or totalEarned >= 50000 then
 			if totalEarned > 0 then
-				local webhookMessage = "💰 **Earnings Report!** 💰\nTotal Earned: **$" .. tostring(totalEarned) .. "**"
+				local logMessage = "Earnings Report: $" .. tostring(totalEarned)
 				
-				webhookUrl = webhookInput.Text
-				print("Webhook URL from input: " .. webhookUrl)
-				
-				if sendWebhook(webhookMessage) then
-					print("Webhook sent - Earned: $" .. tostring(totalEarned))
-				else
-					print("Failed to send webhook")
-				end
+				logEarningsToFile(logMessage)
+				print("✓ Logged earnings: $" .. tostring(totalEarned))
+				trackerStatusLabel.Text = "Status: Logged (Total: $" .. tostring(totalEarned) .. ")"
 			end
 			
 			-- Reset for next cycle
