@@ -354,20 +354,18 @@ local function getEarnedFromGui()
 			local success, text = pcall(function() return child.Text end)
 			if not success or not text then continue end
 			
+			-- Remove HTML/font tags to get clean text
+			local cleanText = text:gsub("<[^>]+>", "")
+			
 			-- Try multiple patterns to find earned amounts
 			local number = nil
 			
 			-- Pattern 1: "Earned $XXXX"
-			number = text:match("[Ee]arned%s+%$%s*([%d,]+)")
+			number = cleanText:match("[Ee]arned%s+%$%s*([%d,]+)")
 			
 			-- Pattern 2: "Earned$XXXX" (no space)
 			if not number then
-				number = text:match("[Ee]arned%$([%d,]+)")
-			end
-			
-			-- Pattern 3: Just look for $ followed by numbers if text starts with E
-			if not number and text:sub(1, 1):lower() == "e" then
-				number = text:match("%$([%d,]+)")
+				number = cleanText:match("[Ee]arned%$([%d,]+)")
 			end
 			
 			if number then
@@ -377,7 +375,7 @@ local function getEarnedFromGui()
 					-- Get the highest earned amount (in case there are multiple)
 					if earned > highestEarned then
 						highestEarned = earned
-						print("Tracking earned: $" .. earned .. " from text: " .. text)
+						print("Tracking earned: $" .. earned)
 					end
 				end
 			end
