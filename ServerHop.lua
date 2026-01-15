@@ -345,25 +345,30 @@ local function getEarnedFromGui()
 	-- Try to find Earned money in PlayerGui
 	local playerGui = player:WaitForChild("PlayerGui")
 	
+	local highestEarned = 0
+	
 	-- Search all descendants for "Earned $" text
 	for _, child in pairs(playerGui:GetDescendants()) do
 		if child:IsA("TextLabel") then
 			local text = child.Text
-			-- Debug: print all text labels to console
-			if text ~= "" and #text < 100 then
-				print("Found text: " .. text)
-			end
-			-- Look for "Earned $" format
-			if text:match("[Ee]arned%s*%$%s*([%d,]+)") then
-				local number = text:match("[Ee]arned%s*%$%s*([%d,]+)")
+			-- Look for "Earned $" format with optional spaces and color codes
+			local number = text:match("[Ee]arned%s*%$%s*([%d,]+)")
+			if number then
 				number = number:gsub(",", "")
 				local earned = tonumber(number)
 				if earned and earned > 0 then
-					print("Found earned amount: $" .. earned)
-					return earned
+					-- Get the highest earned amount (in case there are multiple)
+					if earned > highestEarned then
+						highestEarned = earned
+					end
 				end
 			end
 		end
+	end
+	
+	if highestEarned > 0 then
+		print("Found earned amount: $" .. highestEarned)
+		return highestEarned
 	end
 	
 	return 0
