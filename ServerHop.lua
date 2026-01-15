@@ -430,18 +430,17 @@ local function beliTracker()
 			lastEarned = currentEarned
 		end
 		
-		trackerStatusLabel.Text = "Status: Tracking (Earned: $" .. string.format("%,.0f", totalEarned) .. ")"
+		trackerStatusLabel.Text = "Status: Tracking (Earned: $" .. tostring(totalEarned) .. ")"
 		
 		-- Send webhook every 10 seconds
 		if trackingTimer <= 0 then
 			if totalEarned > 0 then
 				local webhookMessage = "💰 **Earnings Report!** 💰\n" ..
-					"Total Earned: **$" .. string.format("%,.0f", totalEarned) .. "**"
-				
+				"Total Earned: **$" .. tostring(totalEarned) .. "**"
 				webhookUrl = webhookInput.Text
 				if webhookUrl ~= "" and not webhookUrl:find("YOUR_ID") then
 					if sendWebhook(webhookMessage) then
-						print("Webhook sent - Earned: $" .. string.format("%,.0f", totalEarned))
+						print("Webhook sent - Earned: $" .. tostring(totalEarned))
 					end
 				else
 					print("Webhook not configured - skipping send")
