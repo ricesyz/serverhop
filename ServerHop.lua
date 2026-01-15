@@ -349,8 +349,11 @@ local function getEarnedFromGui()
 	
 	-- Search all descendants for "Earned $" text
 	for _, child in pairs(playerGui:GetDescendants()) do
-		if child:IsA("TextLabel") then
-			local text = child.Text
+		-- Safety check: make sure child still exists
+		if child and child:IsA("TextLabel") then
+			local success, text = pcall(function() return child.Text end)
+			if not success or not text then continue end
+			
 			-- Try multiple patterns to find earned amounts
 			local number = nil
 			
