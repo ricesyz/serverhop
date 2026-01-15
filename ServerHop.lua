@@ -351,8 +351,22 @@ local function getEarnedFromGui()
 	for _, child in pairs(playerGui:GetDescendants()) do
 		if child:IsA("TextLabel") then
 			local text = child.Text
-			-- Look for "Earned $" format with optional spaces and color codes
-			local number = text:match("[Ee]arned%s*%$%s*([%d,]+)")
+			-- Try multiple patterns to find earned amounts
+			local number = nil
+			
+			-- Pattern 1: "Earned $XXXX"
+			number = text:match("[Ee]arned%s+%$%s*([%d,]+)")
+			
+			-- Pattern 2: "Earned$XXXX" (no space)
+			if not number then
+				number = text:match("[Ee]arned%$([%d,]+)")
+			end
+			
+			-- Pattern 3: Just look for $ followed by numbers if text starts with E
+			if not number and text:sub(1, 1):lower() == "e" then
+				number = text:match("%$([%d,]+)")
+			end
+			
 			if number then
 				number = number:gsub(",", "")
 				local earned = tonumber(number)
@@ -360,6 +374,7 @@ local function getEarnedFromGui()
 					-- Get the highest earned amount (in case there are multiple)
 					if earned > highestEarned then
 						highestEarned = earned
+						print("Tracking earned: $" .. earned .. " from text: " .. text)
 					end
 				end
 			end
@@ -367,7 +382,6 @@ local function getEarnedFromGui()
 	end
 	
 	if highestEarned > 0 then
-		print("Found earned amount: $" .. highestEarned)
 		return highestEarned
 	end
 	
