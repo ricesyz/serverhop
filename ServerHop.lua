@@ -434,15 +434,18 @@ local function sendWebhook(message)
 		username = "Beli Tracker"
 	}
 	
+	local jsonPayload = HttpService:JSONEncode(payload)
+	
 	local success, response = pcall(function()
-		return HttpService:PostAsync(webhookUrl, HttpService:JSONEncode(payload), Enum.HttpContentType.ApplicationJson)
+		HttpService:PostAsync(webhookUrl, jsonPayload, Enum.HttpContentType.ApplicationJson)
+		return true
 	end)
 	
-	if success then
+	if success and response == true then
 		print("Webhook sent successfully!")
 		return true
 	else
-		print("Webhook failed: " .. tostring(response))
+		print("Webhook error: " .. tostring(response))
 		return false
 	end
 end
