@@ -272,6 +272,235 @@ stopButton.MouseButton1Click:Connect(function()
 	timerLabel.Text = "Ready"
 end)
 
+-- Beli Tracker Section
+local beliTrackerActive = true
+local lastBeliMilestone = 0
+local webhookUrl = ""
+
+-- Expand main frame to accommodate beli tracker
+mainFrame.Size = UDim2.new(0, 250, 0, 230)
+
+-- Divider
+local divider = Instance.new("Frame")
+divider.Name = "Divider"
+divider.Size = UDim2.new(1, 0, 0, 2)
+divider.Position = UDim2.new(0, 0, 0, 135)
+divider.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+divider.BorderSizePixel = 0
+divider.Parent = mainFrame
+
+-- Beli Tracker Title
+local beliTitle = Instance.new("TextLabel")
+beliTitle.Name = "BeliTitle"
+beliTitle.Size = UDim2.new(1, 0, 0, 20)
+beliTitle.Position = UDim2.new(0, 0, 0, 140)
+beliTitle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+beliTitle.TextColor3 = Color3.fromRGB(255, 200, 0)
+beliTitle.TextSize = 12
+beliTitle.Text = "Beli Tracker"
+beliTitle.BorderSizePixel = 0
+beliTitle.Parent = mainFrame
+
+-- Webhook URL Input
+local webhookInputLabel = Instance.new("TextLabel")
+webhookInputLabel.Name = "WebhookLabel"
+webhookInputLabel.Size = UDim2.new(1, 0, 0, 15)
+webhookInputLabel.Position = UDim2.new(0, 5, 0, 165)
+webhookInputLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+webhookInputLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+webhookInputLabel.TextSize = 10
+webhookInputLabel.Text = "Webhook URL:"
+webhookInputLabel.BorderSizePixel = 0
+webhookInputLabel.TextXAlignment = Enum.TextXAlignment.Left
+webhookInputLabel.Parent = mainFrame
+
+local webhookInput = Instance.new("TextBox")
+webhookInput.Name = "WebhookInput"
+webhookInput.Size = UDim2.new(1, -10, 0, 20)
+webhookInput.Position = UDim2.new(0, 5, 0, 182)
+webhookInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+webhookInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+webhookInput.TextSize = 10
+webhookInput.Text = "https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN"
+webhookInput.BorderSizePixel = 1
+webhookInput.BorderColor3 = Color3.fromRGB(100, 100, 100)
+webhookInput.ClearTextOnFocus = false
+webhookInput.Parent = mainFrame
+
+-- Tracker Status Label
+local trackerStatusLabel = Instance.new("TextLabel")
+trackerStatusLabel.Name = "TrackerStatus"
+trackerStatusLabel.Size = UDim2.new(1, 0, 0, 15)
+trackerStatusLabel.Position = UDim2.new(0, 5, 0, 205)
+trackerStatusLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+trackerStatusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
+trackerStatusLabel.TextSize = 10
+trackerStatusLabel.Text = "Status: Tracking..."
+trackerStatusLabel.BorderSizePixel = 0
+trackerStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+trackerStatusLabel.Parent = mainFrame
+
+local function getBeliFromGui()
+	-- Try to find Beli in PlayerGui
+	local playerGui = player:WaitForChild("PlayerGui")
+	
+	-- Try common Blox Fruits GUI paths
+	local beliLabel = playerGui:FindFirstChild("Main")
+	if beliLabel then
+		beliLabel = beliLabel:FindFirstChild("Menu")
+	end
+	
+	if beliLabel then
+		-- Look for the money/beli label in the Menu
+		for _, child in pairs(beliLabel:GetDescendants()) do
+			if child:IsA("TextLabel") then
+				local text = child.Text
+				-- Look for money format like "$42,834,273"
+				if text:match("^%$[%d,]+$") then
+					local number = text:gsub("$", ""):gsub(",", "")
+					return tonumber(number) or 0
+				end
+			end
+		end
+	end
+	
+	-- Fallback: search everywhere for $ format
+	for _, child in pairs(playerGui:GetDescendants()) do
+		if child:IsA("TextLabel") then
+			local text = child.Text
+			if text:match("^%$[%d,]+$") then
+				local number = text:gsub("$", ""):gsub(",", "")
+				return tonumber(number) or 0
+			end
+		end
+	end
+	
+	return 0
+end
+
+local function sendWebhook(message)
+	if webhookUrl == "" or webhookUrl:find("YOUR_ID") then
+		warn("Webhook URL not set properly")
+		return false
+	end
+	
+	local payload = {
+		content = message,
+		username = "Beli Tracker",
+		avatar_url = "https://cdn.discordapp.com/emojis/1234567890.png"
+	}
+	
+	local success = pcall(function()
+		HttpService:PostAsync(webhookUrl, HttpService:JSONEncode(payload), Enum.HttpContentType.ApplicationJson)
+	end)
+	
+	return success
+end
+
+local function beliTracker()
+	local currentBeli = getBeliFromGui()
+	lastBeliMilestone = math.floor(currentBeli / 500000)
+	
+	trackerStatusLabel.Text = "Status: Tracking (" .. string.format("%,.0f", currentBeli) .. ")"
+	
+	while beliTrackerActive do
+		wait(2)
+		
+		currentBeli = getBeliFromGui()
+		local currentMilestone = math.floor(currentBeli / 500000)
+		
+		trackerStatusLabel.Text = "Status: Tracking (" .. string.format("%,.0f", currentBeli) .. ")"
+		
+		-- Check if we've hit a new 1M milestone
+		if currentMilestone > lastBeliMilestone then
+			local newMilestones = currentMilestone - lastBeliMilestone
+			local webhookMessage = "🍖 **Beli Milestone Reached!** 🍖\n" ..
+				"Total Beli: **" .. string.format("%,.0f", currentBeli) .. "**\n" ..
+				"Milestones: **+" .. newMilestones .. " (500k)**"
+			
+			webhookUrl = webhookInput.Text
+			if sendWebhook(webhookMessage) then
+				print("Webhook sent for " .. newMilestones .. "M milestone")
+			end
+			
+			lastBeliMilestone = currentMilestone
+		end
+	end
+	
+	trackerStatusLabel.Text = "Status: Stopped"
+end
+
+-- Start tracker automatically
+task.spawn(beliTracker)
+
+-- Start button clicked
+startButton.MouseButton1Click:Connect(function()
+	hopActive = true
+	timeRemaining = 10
+	startButton.Visible = false
+	stopButton.Visible = true
+	
+	for i = 10, 0, -1 do
+		if not hopActive then break end
+		timeRemaining = i
+		local minutes = math.floor(i / 60)
+		local seconds = i % 60
+		timerLabel.Text = string.format("Hopping in: %d:%02d", minutes, seconds)
+		wait(1)
+	end
+	
+	if hopActive then
+		hopServer()
+		hopActive = false
+		startButton.Visible = true
+		stopButton.Visible = false
+		timerLabel.Text = "Ready"
+	end
+end)
+
+-- Stop button clicked
+stopButton.MouseButton1Click:Connect(function()
+	hopActive = false
+	startButton.Visible = true
+	stopButton.Visible = false
+	timerLabel.Text = "Cancelled"
+	wait(1)
+	timerLabel.Text = "Ready"
+end)
+
+-- Start Tracker button clicked
+startTrackerButton.MouseButton1Click:Connect(function()
+	webhookUrl = webhookInput.Text
+	
+	if webhookUrl == "" or webhookUrl:find("YOUR_ID") then
+		trackerStatusLabel.Text = "Status: Invalid webhook URL"
+		wait(2)
+		trackerStatusLabel.Text = "Status: Tracking..."
+		return
+	end
+	
+	beliTrackerActive = true
+	webhookInput.Visible = false
+	webhookInputLabel.Visible = false
+	startTrackerButton.Size = UDim2.new(0, 0, 0, 25)
+	startTrackerButton.Visible = false
+	stopTrackerButton.Size = UDim2.new(1, -10, 0, 25)
+	stopTrackerButton.Visible = true
+	
+	task.spawn(beliTracker)
+end)
+
+-- Stop Tracker button clicked
+stopTrackerButton.MouseButton1Click:Connect(function()
+	beliTrackerActive = false
+	stopTrackerButton.Visible = false
+	startTrackerButton.Size = UDim2.new(1, -10, 0, 25)
+	startTrackerButton.Visible = true
+	webhookInput.Visible = true
+	webhookInputLabel.Visible = true
+	trackerStatusLabel.Text = "Status: Idle"
+end)
+
 -- Fixed Timer Loop with 3-attempt cycle (50s, 30s, 10s)
 local attemptCount = 0
 local timers = {50, 30, 10} -- Timer durations for each attempt
